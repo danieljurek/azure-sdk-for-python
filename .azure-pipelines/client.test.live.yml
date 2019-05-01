@@ -11,6 +11,13 @@ jobs:
         Linux_Python37:
           OSVmImage: 'ubuntu-16.04'
           PythonVersion: '3.7'
+        Linux_Python27:
+          OSVmImage: 'ubuntu-16.04'
+          PythonVersion: '2.7'
+        Windows_Python37:
+          OSName: 'Windows'
+          OSVmImage: 'vs2017-win2016'
+          PythonVersion: '3.7'
       maxParallel: 1
     continueOnError: false
 
