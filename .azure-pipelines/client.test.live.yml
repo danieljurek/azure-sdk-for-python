@@ -18,7 +18,7 @@ jobs:
           OSName: 'Windows'
           OSVmImage: 'vs2017-win2016'
           PythonVersion: '3.7'
-      maxParallel: 1
+      maxParallel: 3
     continueOnError: false
 
     pool:
