@@ -9,6 +9,7 @@ jobs:
     strategy:
       matrix:
         Linux_Python37:
+          OSName: 'Linux'
           OSVmImage: 'ubuntu-16.04'
           PythonVersion: '3.7'
         Linux_Python27:
