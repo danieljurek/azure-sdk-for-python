@@ -13,13 +13,22 @@ jobs:
           OSVmImage: 'ubuntu-16.04'
           PythonVersion: '3.7'
         Linux_Python27:
+          OSName: 'Linux'
           OSVmImage: 'ubuntu-16.04'
           PythonVersion: '2.7'
         Windows_Python37:
           OSName: 'Windows'
           OSVmImage: 'vs2017-win2016'
           PythonVersion: '3.7'
-      maxParallel: 3
+        MacOS_Python27:
+          OSName: 'MacOS'
+          OSVmImage: 'macOS-10.13'
+          PythonVersion: '2.7'
+        MacOS_Python37:
+          OSName: 'MacOS'
+          OSVmImage: 'macOS-10.13'
+          PythonVersion: '3.7'
+      maxParallel: 5
     continueOnError: false
 
     pool:
