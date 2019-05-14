@@ -28,7 +28,6 @@ jobs:
           OSName: 'MacOS'
           OSVmImage: 'macOS-10.13'
           PythonVersion: '3.7'
-      maxParallel: 5
     continueOnError: false
 
     pool:
