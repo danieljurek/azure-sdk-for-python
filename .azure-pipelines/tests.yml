@@ -5,7 +5,6 @@ jobs:
   - job: 'Test'
 
     timeoutInMinutes: 120
-    # Will be adding more elements to the matrix, once this has couple of succesful runs
     strategy:
       matrix:
         Linux_Python37:
