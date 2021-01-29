@@ -226,6 +226,85 @@ function Update-python-CIConfig($pkgs, $ciRepo, $locationInDocRepo, $monikerId=$
   Set-Content -Path $pkgJsonLoc -Value $jsonContent
 }
 
+function Update-python-MonikerConfig($SupersedingPackages, $CiConfigLocation) { 
+  if (-not (Test-Path $CiConfigLocation)) {
+    Write-Error "Unable to locate package json at location $CiConfigLocation, exiting."
+    exit(1)
+  }
+
+  $allJson  = Get-Content $CiConfigLocation | ConvertFrom-Json
+  $supersedingPackagesCache = @{}
+
+  foreach ($package in $SupersedingPackages) { 
+    $supersedingPackagesCache[$package.PackageId] = $package
+  }
+
+  # Filter out superseding packages 
+  $allJson.packages = $allJson.packages `
+    | Where-Object { 
+      if (-not $supersedingPackagesCache.ContainsKey($_.package_info.name)) { 
+        return $true
+      }
+
+      $supersedingVersion = [AzureEngSemanticVersion]::ParseVersionString(
+        $supersedingPackagesCache[$_.package_info.name].PackageVersion
+      )
+      $previewVersion = [AzureEngSemanticVersion]::ParseVersionString(
+        $_.package_info.version.Replace('>=', '')
+      )
+
+      # 1.0.0 > 1.0.0b2, return $false to exclude from the packages array
+      Write-Host "$($_.package_info.name)@$supersedingVersion > $previewVersion ??"
+      if ($supersedingVersion -gt $previewVersion) { 
+        Write-Host "FALSE"
+        return $false 
+      }
+
+      Write-Host "TRUE"
+      return $true
+    }
+
+    $jsonContent = $allJson | ConvertTo-Json -Depth 10 | % {$_ -replace "(?m)  (?<=^(?:  )*)", "  " }
+
+    Set-Content -Path $CiConfigLocation -Value $jsonContent
+}
+
+function Test-python-PackageSupersedesAllPublishedPackages($packageInfo, $latestConfig=$null) { 
+  $currentVersion = [AzureEngSemanticVersion]::ParseVersionString($packageInfo.PackageVersion)
+  try
+  {
+    $packageInfo = Invoke-RestMethod `
+      -MaximumRetryCount 3 `
+      -RetryIntervalSec 10 `
+      -Method "Get" `
+      -Uri "https://pypi.org/pypi/$($packageInfo.PackageId)/json"
+
+    $supersedingPublishedVersions = $packageInfo.releases.PSObject.Properties `
+      | Where-Object { 
+        Write-Host "$($_.Name) > $currentVersion = ?? " + ([AzureEngSemanticVersion]::ParseVersionString($_.Name) -gt  $currentVersion )
+        return [AzureEngSemanticVersion]::ParseVersionString($_.Name) -gt  $currentVersion }
+
+    # If Count == 0 there are no superseding packages return $true, else $false
+    return ($supersedingPublishedVersions | Measure-Object).Count -eq 0
+  }
+  catch 
+  {
+    $statusCode = $_.Exception.Response.StatusCode.value__
+    $statusDescription = $_.Exception.Response.StatusDescription
+
+    # if this is 404ing, then this pkg has never been published before and any
+    # version will supersede
+    if ($statusCode -eq 404) 
+    {
+      return $true
+    }
+    Write-Host "PyPI Invocation failed:"
+    Write-Host "StatusCode:" $statusCode
+    Write-Host "StatusDescription:" $statusDescription
+    exit(1)
+  }
+}
+
 # function is used to auto generate API View
 function Find-python-Artifacts-For-Apireview($artifactDir, $artifactName)
 {
