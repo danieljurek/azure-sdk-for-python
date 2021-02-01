@@ -226,7 +226,7 @@ function Update-python-CIConfig($pkgs, $ciRepo, $locationInDocRepo, $monikerId=$
   Set-Content -Path $pkgJsonLoc -Value $jsonContent
 }
 
-function Update-python-MonikerConfig($SupersedingPackages, $CiConfigLocation, $monikerId) { 
+function Update-python-MonikerConfig($SupersedingPackages, $CiConfigLocation, $previewMonikerIndex=$null, $latestMonikerIndex=$null) { 
   if (-not (Test-Path $CiConfigLocation)) {
     Write-Error "Unable to locate package json at location $CiConfigLocation, exiting."
     exit(1)
