@@ -226,7 +226,7 @@ function Update-python-CIConfig($pkgs, $ciRepo, $locationInDocRepo, $monikerId=$
   Set-Content -Path $pkgJsonLoc -Value $jsonContent
 }
 
-function Update-python-MonikerConfig($SupersedingPackages, $CiConfigLocation) { 
+function Update-python-MonikerConfig($SupersedingPackages, $CiConfigLocation, $monikerId) { 
   if (-not (Test-Path $CiConfigLocation)) {
     Write-Error "Unable to locate package json at location $CiConfigLocation, exiting."
     exit(1)
@@ -256,11 +256,11 @@ function Update-python-MonikerConfig($SupersedingPackages, $CiConfigLocation) {
       # 1.0.0 > 1.0.0b2, return $false to exclude from the packages array
       Write-Host "$($_.package_info.name)@$supersedingVersion > $previewVersion ??"
       if ($supersedingVersion -gt $previewVersion) { 
-        Write-Host "FALSE"
+        Write-Host "SUPERSEDED"
         return $false 
       }
 
-      Write-Host "TRUE"
+      Write-Host "NOT SUPERSEDED"
       return $true
     }
 
@@ -273,16 +273,20 @@ function Test-python-PackageSupersedesAllPublishedPackages($packageInfo, $latest
   $currentVersion = [AzureEngSemanticVersion]::ParseVersionString($packageInfo.PackageVersion)
   try
   {
-    $packageInfo = Invoke-RestMethod `
+    $pyPIResponse = Invoke-RestMethod `
       -MaximumRetryCount 3 `
       -RetryIntervalSec 10 `
       -Method "Get" `
       -Uri "https://pypi.org/pypi/$($packageInfo.PackageId)/json"
 
-    $supersedingPublishedVersions = $packageInfo.releases.PSObject.Properties `
+    $supersedingPublishedVersions = $pyPIResponse.releases.PSObject.Properties `
       | Where-Object { 
-        Write-Host "$($_.Name) > $currentVersion = ?? " + ([AzureEngSemanticVersion]::ParseVersionString($_.Name) -gt  $currentVersion )
-        return [AzureEngSemanticVersion]::ParseVersionString($_.Name) -gt  $currentVersion }
+        $superseded = [AzureEngSemanticVersion]::ParseVersionString($_.Name) -gt  $currentVersion
+        if ($superseded) { 
+          Write-Host "$($packageInfo.PackageId)@$($packageInfo.PackageVersion) is superseded by version $($_.Name)"
+        }
+        return $superseded
+      }
 
     # If Count == 0 there are no superseding packages return $true, else $false
     return ($supersedingPublishedVersions | Measure-Object).Count -eq 0
@@ -301,6 +305,7 @@ function Test-python-PackageSupersedesAllPublishedPackages($packageInfo, $latest
     Write-Host "PyPI Invocation failed:"
     Write-Host "StatusCode:" $statusCode
     Write-Host "StatusDescription:" $statusDescription
+    Write-Host "Last Exception: " $_
     exit(1)
   }
 }
